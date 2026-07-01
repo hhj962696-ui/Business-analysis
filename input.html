@@ -508,17 +508,14 @@
 
             // 在前端使用 docxtemplater 進行 Word 渲染
             try {
-                const zip = new JSZip(arrayBuffer);
+                // 1. 先建立一個空的 JSZip 物件，再用 loadAsync 載入資料
+                const zip = new JSZip();
+                await zip.loadAsync(arrayBuffer);
+
+                // 2. 傳入已經載入完成的 zip 物件
                 const doc = new window.docxtemplater(zip, {
                     linebreaks: true,
                     paragraphLoop: true
-                });
-
-                doc.render(templateData);
-
-                const out = doc.getZip().generate({
-                    type: "blob",
-                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 });
 
                 // 產生時間戳記並下載檔案
