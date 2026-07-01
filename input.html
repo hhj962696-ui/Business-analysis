@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商情分析表填寫系統 - 完整版</title>
+    <style>
+        body {
+            font-family: "微軟正黑體", sans-serif;
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #0056b3;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .col {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        fieldset {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        legend {
+            font-weight: bold;
+            color: #0056b3;
+            background: white;
+            padding: 0 10px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #004494;
+        }
+
+        .delete-btn,
+        .vendor-del-btn {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 14px;
+            background-color: #dc3545;
+        }
+
+        .search-block {
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>商情分析表填寫系統</h2>
+        <form action="generate.php" method="POST" onsubmit="return validateVendors()">
+
+            <!-- 第一部分：基本資訊與品項 -->
+            <fieldset>
+                <legend>一、基本資訊與價格數量</legend>
+                <div class="row">
+                    <div class="col form-group"><label>專案代碼：</label><input type="text" name="project_code" required>
+                    </div>
+                    <div class="col form-group"><label>品名：</label><input type="text" name="product_name" required></div>
+                    <div class="col form-group"><label>填送日期：</label><input type="date" name="fill_date" required></div>
+                </div>
+
+                <div id="item-container">
+                    <div class="item-row"
+                        style="background: #f9f9f9; padding: 15px; border: 1px dashed #ccc; margin-bottom: 15px; position: relative;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin:0; color:#555;">項次 <span class="item-number">1</span></h4>
+                            <button type="button" class="delete-btn" onclick="removeItem(this)"
+                                style="display: none;">刪除此項次</button>
+                        </div>
+                        <div class="row">
+                            <div class="col form-group"><label>單位：</label><input type="text" name="unit[]" value="式">
+                            </div>
+                            <div class="col form-group"><label>數量：</label><input type="number" name="quantity[]"
+                                    value="1" oninput="calculateTotals()"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col form-group"><label>以往採購單價：</label><input type="number"
+                                    name="prev_unit_price[]" oninput="calculateTotals()"></div>
+                            <div class="col form-group"><label>市場最低單價：</label><input type="number"
+                                    name="market_lowest_price[]" oninput="calculateTotals()"></div>
+                            <div class="col form-group"><label>申購預估單價：</label><input type="number"
+                                    name="est_unit_price[]" required oninput="calculateTotals()"></div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="addItem()" style="background-color: #28a745; margin-bottom: 15px;">+
+                    新增一個項次</button>
+
+                <div class="row" style="margin-top: 20px; border-top: 2px solid #ddd; padding-top: 15px;">
+                    <div class="col form-group"><label>以往採購總價 (自動合計)：</label><input type="number"
+                            name="sum_prev_total_input" id="sum_prev_total" readonly style="background-color: #e9ecef;">
+                    </div>
+                    <div class="col form-group"><label>市場最低總價 (自動合計)：</label><input type="number"
+                            name="sum_market_total_input" id="sum_market_total" readonly
+                            style="background-color: #e9ecef;"></div>
+                    <div class="col form-group"><label>申購預估總價 (自動合計)：</label><input type="number"
+                            name="sum_est_total_input" id="sum_est_total" required readonly
+                            style="background-color: #e9ecef;"></div>
+                </div>
+            </fieldset>
+
+            <!-- 第二部分：分析說明 -->
+            <fieldset>
+                <legend>二、商情分析及說明</legend>
+
+                <div class="form-group"><label>一、目的：</label><textarea name="purpose" rows="2"></textarea></div>
+
+                <!-- 新增：二、商源資料填表區 -->
+                <fieldset style="background: #fff; border: 1px solid #b3d7ff;">
+                    <legend style="color: #0056b3;">二、商源資料 (需至少 3 家)</legend>
+                    <div id="vendor-container"></div>
+                    <button type="button" onclick="addVendor()"
+                        style="background-color: #28a745; margin-top: 10px; width: auto;">+ 新增商源廠商</button>
+                </fieldset>
+
+                <!-- 三、以往採購紀錄 (機關代碼搜尋) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <div class="search-block" style="background: #f0f4f8; border-color: #cfe2f3;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <span style="font-size: 15px; color: #d9534f; font-weight: bold;">@ 機關代碼：</span>
+                            <input type="text" id="pcc_org_id_3" placeholder="例：A.1.2.9"
+                                style="width: 120px; padding: 6px;">
+                            <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
+                            <input type="date" id="pcc_start_date_3" style="width: 140px; padding: 6px;"> <span>~</span>
+                            <input type="date" id="pcc_end_date_3" style="width: 140px; padding: 6px;">
+                            <button type="button" onclick="searchPcc(3)"
+                                style="width: auto; padding: 7px 20px; background-color: #5bc0de; margin-left: auto;">🔍
+                                依機關代碼查詢</button>
+                        </div>
+                    </div>
+                    <label>三、本單位以往採購紀錄：</label>
+                    <textarea name="prev_records" rows="4"></textarea>
+                </div>
+
+                <!-- 四、國軍其他單位 (機關名稱搜尋) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <div class="search-block" style="background: #fdf7f7; border-color: #f2dede;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <span style="font-size: 15px; color: #d9534f; font-weight: bold;">@ 機關名稱：</span>
+                            <input type="text" id="pcc_org_name_4" placeholder="例：陸軍司令部"
+                                style="width: 120px; padding: 6px;">
+                            <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
+                            <input type="date" id="pcc_start_date_4" style="width: 140px; padding: 6px;"> <span>~</span>
+                            <input type="date" id="pcc_end_date_4" style="width: 140px; padding: 6px;">
+                            <button type="button" onclick="searchPcc(4)"
+                                style="width: auto; padding: 7px 20px; background-color: #5cb85c; margin-left: auto;">🔍
+                                依機關名稱查詢</button>
+                        </div>
+                    </div>
+                    <label>四、國軍其他單位以往採購紀錄：</label>
+                    <textarea name="other_military_records" rows="4"></textarea>
+                </div>
+
+                <!-- 五、市場其他成交價格 (標案名稱搜尋) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <div class="search-block" style="background: #f3f0fd; border-color: #dcd6f7;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <span style="font-size: 15px; color: #6f42c1; font-weight: bold;">@ 標案名稱：</span>
+                            <input type="text" id="pcc_tender_name_5" placeholder="例：無線"
+                                style="width: 120px; padding: 6px;">
+                            <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
+                            <input type="date" id="pcc_start_date_5" style="width: 140px; padding: 6px;"> <span>~</span>
+                            <input type="date" id="pcc_end_date_5" style="width: 140px; padding: 6px;">
+                            <button type="button" onclick="searchPcc(5)"
+                                style="width: auto; padding: 7px 20px; background-color: #6f42c1; margin-left: auto;">🔍
+                                依標案名稱查詢</button>
+                        </div>
+                    </div>
+                    <label>五、市場其他成交價格：</label>
+                    <textarea name="other_market_prices" rows="2">無</textarea>
+                </div>
+
+                <div class="form-group"><label>六、市場(廠商)訪價調查：</label><textarea name="market_survey" rows="2"></textarea>
+                </div>
+
+                <!-- 七、訪價廠商折扣 (得標廠商搜尋) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <div class="search-block" style="background: #e7f3ff; border-color: #b3d7ff;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <span style="font-size: 15px; color: #007bff; font-weight: bold;">@ 廠商查詢：</span>
+                            <input type="text" id="pcc_vendor_name_7" placeholder="例：奎宇"
+                                style="width: 120px; padding: 6px;">
+                                <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
+                            <input type="date" id="pcc_start_date_7" style="width: 140px; padding: 6px;"> <span>~</span>
+                            <input type="date" id="pcc_end_date_7" style="width: 140px; padding: 6px;">
+                            <button type="button" onclick="searchPcc(7)"
+                                style="width: auto; padding: 7px 20px; background-color: #007bff; margin-left: auto;">🔍
+                                依得標廠商查詢</button>
+                        </div>
+                    </div>
+                    <label>七、訪價廠商之以往折扣紀錄：</label>
+                    <textarea name="discount_records" rows="2">無</textarea>
+                </div>
+
+                <!-- 八、相關物價指數 (主計總處連結) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <div class="search-block" style="background: #e6fcf5; border-color: #c3fae8;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <span style="font-size: 15px; color: #0ca678; font-weight: bold;">📊 行政院主計總處：</span>
+                            <span style="font-size: 14px;">CPI / WPI 查詢</span>
+                            <button type="button"
+                                onclick="window.open('https://www.stat.gov.tw/cp.aspx?n=2665', '_blank')"
+                                style="width: auto; padding: 7px 20px; background-color: #0ca678; margin-left: auto;">🌐
+                                前往查詢</button>
+                        </div>
+                    </div>
+                    <label>八、相關物價指數：</label>
+                    <textarea name="price_index" rows="2">無</textarea>
+                </div>
+
+                <div class="form-group"><label>九、專業單位之成本分析：</label><textarea name="cost_analysis" rows="3"></textarea>
+                </div>
+
+                <div class="form-group"><label>十、預估金額與結論：</label><textarea name="conclusion"
+                        rows="2">綜上所述，訂定本案預估金額為總價新臺幣○○元。</textarea></div>
+
+            </fieldset>
+
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <button type="submit" name="target_doc" value="analysis" style="flex: 1;">產出「商情分析表」</button>
+                <button type="submit" name="target_doc" value="review"
+                    style="flex: 1; background-color: #6c757d;">產出「商情蒐集資料檢視表」</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // 1. 自動計算總價
+        function calculateTotals() {
+            let sumPrev = 0, sumMarket = 0, sumEst = 0;
+            document.querySelectorAll('.item-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+                const prev = parseFloat(row.querySelector('input[name="prev_unit_price[]"]').value) || 0;
+                const market = parseFloat(row.querySelector('input[name="market_lowest_price[]"]').value) || 0;
+                const est = parseFloat(row.querySelector('input[name="est_unit_price[]"]').value) || 0;
+                sumPrev += (qty * prev); sumMarket += (qty * market); sumEst += (qty * est);
+            });
+            document.getElementById('sum_prev_total').value = sumPrev || '';
+            document.getElementById('sum_market_total').value = sumMarket || '';
+            document.getElementById('sum_est_total').value = sumEst || '';
+        }
+
+        // 2. 項次管理
+        function updateItemNumbers() {
+            const allItems = document.querySelectorAll('.item-row');
+            allItems.forEach((item, index) => {
+                item.querySelector('.item-number').innerText = index + 1;
+                item.querySelector('.delete-btn').style.display = allItems.length > 1 ? 'block' : 'none';
+            });
+        }
+
+        function addItem() {
+            const container = document.getElementById('item-container');
+            const newItem = container.querySelector('.item-row').cloneNode(true);
+            newItem.querySelectorAll('input').forEach(input => {if (!['unit[]', 'quantity[]'].includes(input.name)) input.value = '';});
+            container.appendChild(newItem);
+            updateItemNumbers();
+        }
+
+        function removeItem(btn) {
+            btn.closest('.item-row').remove();
+            updateItemNumbers();
+            calculateTotals();
+        }
+
+        // 3. 商源廠商管理
+        function addVendor() {
+            const container = document.getElementById('vendor-container');
+            const div = document.createElement('div');
+            div.className = 'vendor-row';
+            div.style = "background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;";
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <strong class="vendor-label">廠商</strong>
+                    <button type="button" onclick="removeVendor(this)" class="vendor-del-btn" style="color:white; border:none; border-radius:4px; cursor:pointer;">刪除</button>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>廠商名稱：</label><input type="text" name="v_name[]" required></div>
+                    <div class="col form-group"><label>住址：</label><input type="text" name="v_address[]"></div>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>聯絡人：</label><input type="text" name="v_contact[]"></div>
+                    <div class="col form-group"><label>電話：</label><input type="text" name="v_phone[]"></div>
+                </div>`;
+            container.appendChild(div);
+            updateVendorLabels();
+        }
+
+        function removeVendor(btn) {
+            btn.closest('.vendor-row').remove();
+            updateVendorLabels();
+        }
+
+        function updateVendorLabels() {
+            const rows = document.querySelectorAll('.vendor-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.vendor-label').innerText = `商源廠商 (${index + 1})`;
+                row.querySelector('.vendor-del-btn').style.display = rows.length > 3 ? 'block' : 'none';
+            });
+        }
+
+        // 4. 送出前驗證 (至少 3 家廠商)
+        function validateVendors() {
+            const vendorCount = document.querySelectorAll('.vendor-row').length;
+            if (vendorCount < 3) {
+                alert("⚠️ 錯誤：商源資料至少需提供 3 家廠商資料才能產生文件！");
+                return false;
+            }
+            return true;
+        }
+
+        // 5. 政府電子採購網搜尋功能 (修正整合版)
+        function searchPcc(section) {
+            let orgId = '', orgName = '', tenderName = '', vendorName = '', startDate = '', endDate = '';
+
+            if (section === 3) {
+                orgId = document.getElementById('pcc_org_id_3').value;
+                startDate = document.getElementById('pcc_start_date_3').value;
+                endDate = document.getElementById('pcc_end_date_3').value;
+                if (!orgId) return alert("請輸入機關代碼！");
+            } else if (section === 4) {
+                orgName = document.getElementById('pcc_org_name_4').value;
+                startDate = document.getElementById('pcc_start_date_4').value;
+                endDate = document.getElementById('pcc_end_date_4').value;
+                if (!orgName) return alert("請輸入機關名稱！");
+            } else if (section === 5) {
+                tenderName = document.getElementById('pcc_tender_name_5').value;
+                startDate = document.getElementById('pcc_start_date_5').value;
+                endDate = document.getElementById('pcc_end_date_5').value;
+                if (!tenderName) return alert("請輸入標案名稱！");
+            } else if (section === 7) {
+                vendorName = document.getElementById('pcc_vendor_name_7').value;
+                startDate = document.getElementById('pcc_start_date_7').value;
+                endDate = document.getElementById('pcc_end_date_7').value;
+                if (!vendorName) return alert("請輸入廠商名稱！");
+            }
+
+            const fmtStart = startDate ? startDate.replace(/-/g, '/') : '';
+            const fmtEnd = endDate ? endDate.replace(/-/g, '/') : '';
+            const baseUrl = "https://web.pcc.gov.tw/prkms/tender/common/agent/readTenderAgent";
+            const params = new URLSearchParams({
+                'pageSize': '50', 'firstSearch': 'false', 'isBinding': 'N', 'isLogIn': 'N',
+                'orgId': orgId, 'orgName': orgName, 'tenderName': tenderName, 'contractorName': vendorName,
+                'tenderStatus': 'TENDER_STATUS_1', 'tenderWay': 'TENDER_WAY_ALL_DECLARATION',
+                'awardAnnounceStartDate': fmtStart, 'awardAnnounceEndDate': fmtEnd, 'tenderRange': 'TENDER_RANGE_ALL'
+            });
+            window.open(`${baseUrl}?${params.toString()}`, '_blank');
+        }
+
+        // 初始化：頁面載入後自動產生 3 個廠商
+        window.onload = function () {
+            for (let i = 0; i < 3; i++) addVendor();
+        };
+    </script>
+</body>
+
+</html>
