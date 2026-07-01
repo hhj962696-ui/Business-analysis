@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商情分析表填寫系統 - 完整版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <title>商情分析表填寫系統</title>
     <style>
         body {
             font-family: "微軟正黑體", sans-serif;
@@ -115,7 +118,7 @@
 
     <div class="container">
         <h2>商情分析表填寫系統</h2>
-        <form action="generate.php" method="POST" onsubmit="return validateVendors()">
+        <form onsubmit="event.preventDefault(); return validateVendors();">
 
             <!-- 第一部分：基本資訊與品項 -->
             <fieldset>
@@ -249,7 +252,7 @@
                             <span style="font-size: 15px; color: #007bff; font-weight: bold;">@ 廠商查詢：</span>
                             <input type="text" id="pcc_vendor_name_7" placeholder="例：奎宇"
                                 style="width: 120px; padding: 6px;">
-                                <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
+                            <span style="font-size: 15px; color: #333; font-weight: bold;">查詢區間：</span>
                             <input type="date" id="pcc_start_date_7" style="width: 140px; padding: 6px;"> <span>~</span>
                             <input type="date" id="pcc_end_date_7" style="width: 140px; padding: 6px;">
                             <button type="button" onclick="searchPcc(7)"
@@ -286,8 +289,8 @@
             </fieldset>
 
             <div style="display: flex; gap: 15px; margin-top: 20px;">
-                <button type="submit" name="target_doc" value="analysis" style="flex: 1;">產出「商情分析表」</button>
-                <button type="submit" name="target_doc" value="review"
+                <button type="button" onclick="generateDocument('analysis')" style="flex: 1;">產出「商情分析表」</button>
+                <button type="button" onclick="generateDocument('review')"
                     style="flex: 1; background-color: #6c757d;">產出「商情蒐集資料檢視表」</button>
             </div>
         </form>
@@ -420,6 +423,121 @@
         window.onload = function () {
             for (let i = 0; i < 3; i++) addVendor();
         };
+
+        // 純前端核心流程：自動讀取模板 -> 填入資料 -> 產出 Word 檔
+        async function generateDocument(targetDoc) {
+            // 驗證商源廠商是否足夠
+            if (!validateVendors()) return;
+
+            // 定義模板檔名 (需與網頁放在相同資料夾)
+            const templateUrl = targetDoc === 'review' ? '商情蒐集資料檢視表template.docx' : '商情分析表template.docx';
+
+            let arrayBuffer;
+            try {
+                const response = await fetch(templateUrl);
+                if (!response.ok) throw new Error(`找不到模板檔案：${templateUrl}`);
+                arrayBuffer = await response.arrayBuffer();
+            } catch (error) {
+                alert(`⚠️ 讀取模板失敗！請確認模板檔案是否已上傳至 GitHub，且檔名正確。\n錯誤訊息: ${error.message}`);
+                return;
+            }
+
+            // 收集基本資訊與文字欄位
+            const templateData = {
+                project_code: document.querySelector('input[name="project_code"]').value,
+                product_name: document.querySelector('input[name="product_name"]').value,
+                fill_date: document.querySelector('input[name="fill_date"]').value,
+                purpose: document.querySelector('textarea[name="purpose"]').value,
+                prev_records: document.querySelector('textarea[name="prev_records"]').value,
+                other_military_records: document.querySelector('textarea[name="other_military_records"]').value,
+                other_market_prices: document.querySelector('textarea[name="other_market_prices"]').value,
+                market_survey: document.querySelector('textarea[name="market_survey"]').value,
+                discount_records: document.querySelector('textarea[name="discount_records"]').value,
+                price_index: document.querySelector('textarea[name="price_index"]').value,
+                cost_analysis: document.querySelector('textarea[name="cost_analysis"]').value,
+                conclusion: document.querySelector('textarea[name="conclusion"]').value
+            };
+
+            // 處理「二、商源資料」多筆欄位組合
+            const vNames = Array.from(document.querySelectorAll('input[name="v_name[]"]')).map(el => el.value.trim());
+            const vAddresses = Array.from(document.querySelectorAll('input[name="v_address[]"]')).map(el => el.value.trim() || '無');
+            const vContacts = Array.from(document.querySelectorAll('input[name="v_contact[]"]')).map(el => el.value.trim() || '無');
+            const vPhones = Array.from(document.querySelectorAll('input[name="v_phone[]"]')).map(el => el.value.trim() || '無');
+
+            let vendorStrings = [];
+            for (let i = 0; i < vNames.length; i++) {
+                if (vNames[i]) {
+                    vendorStrings.push(`${i + 1}. ${vNames[i]} (住址：${vAddresses[i]}，聯絡人：${vContacts[i]}，電話：${vPhones[i]})`);
+                }
+            }
+            templateData.source_data = vendorStrings.join('\n');
+
+            // 處理多品項動態表格
+            const items = [];
+            document.querySelectorAll('.item-row').forEach((row, index) => {
+                const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+                const prevP = parseFloat(row.querySelector('input[name="prev_unit_price[]"]').value) || 0;
+                const marketP = parseFloat(row.querySelector('input[name="market_lowest_price[]"]').value) || 0;
+                const estP = parseFloat(row.querySelector('input[name="est_unit_price[]"]').value) || 0;
+
+                const fmt = (num) => num > 0 ? num.toLocaleString('en-US') : '';
+
+                items.push({
+                    item_index: index + 1,
+                    unit: row.querySelector('input[name="unit[]"]').value || '式',
+                    quantity: qty.toLocaleString('en-US'),
+                    prev_unit_price: fmt(prevP),
+                    market_lowest_price: fmt(marketP),
+                    est_unit_price: fmt(estP),
+                    prev_total: fmt(prevP * qty),
+                    market_total: fmt(marketP * qty),
+                    est_total: fmt(estP * qty)
+                });
+            });
+            templateData.items = items;
+
+            // 取得合計總價
+            const sumPrev = parseFloat(document.getElementById('sum_prev_total').value) || 0;
+            const sumMarket = parseFloat(document.getElementById('sum_market_total').value) || 0;
+            const sumEst = parseFloat(document.getElementById('sum_est_total').value) || 0;
+
+            const fmtTotal = (num) => num > 0 ? num.toLocaleString('en-US') : '';
+            templateData.sum_prev_total = fmtTotal(sumPrev);
+            templateData.sum_market_total = fmtTotal(sumMarket);
+            templateData.sum_est_total = fmtTotal(sumEst);
+
+            // 在前端使用 docxtemplater 進行 Word 渲染
+            try {
+                const zip = new JSZip(arrayBuffer);
+                const doc = new window.docxtemplater(zip, {
+                    linebreaks: true,
+                    paragraphLoop: true
+                });
+
+                doc.render(templateData);
+
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
+
+                // 產生時間戳記並下載檔案
+                const now = new Date();
+                const dateStr = now.getFullYear() +
+                    String(now.getMonth() + 1).padStart(2, '0') +
+                    String(now.getDate()).padStart(2, '0') + '_' +
+                    String(now.getHours()).padStart(2, '0') +
+                    String(now.getMinutes()).padStart(2, '0') +
+                    String(now.getSeconds()).padStart(2, '0');
+
+                const filePrefix = targetDoc === 'review' ? '商情蒐集資料檢視表_' : '商情分析表_';
+                saveAs(out, `${filePrefix}${dateStr}.docx`);
+
+            } catch (error) {
+                console.error(error);
+                alert('⚠️ 產出 Word 檔案時發生錯誤，請檢查欄位標籤與格式！');
+            }
+        }
     </script>
 </body>
 
