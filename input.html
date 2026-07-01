@@ -482,6 +482,18 @@
             // 驗證商源廠商是否足夠
             if (!validateVendors()) return;
 
+            // 注入舊版 docxtemplater 專用的 XML 欄位解析器 (確保能解析 Word 的換行標記)
+            window.docxtemplater.prototype.options.parser = function (tag) {
+                return {
+                    get: function (scope) {
+                        if (tag.indexOf('@') === 0) { // 如果標籤以 @ 開頭，視為原生 XML
+                            return scope[tag.substr(1)];
+                        }
+                        return scope[tag];
+                    }
+                };
+            };
+
             // 定義模板檔名 (需與網頁放在相同資料夾)
             const templateUrl = targetDoc === 'review' ? '商情蒐集資料檢視表template.docx' : '商情分析表template.docx';
 
@@ -495,22 +507,6 @@
                 return;
             }
 
-            // 收集基本資訊與文字欄位
-            const templateData = {
-                project_code: document.querySelector('input[name="project_code"]').value,
-                product_name: document.querySelector('input[name="product_name"]').value,
-                fill_date: document.querySelector('input[name="fill_date"]').value,
-                purpose: document.querySelector('textarea[name="purpose"]').value,
-                prev_records: document.querySelector('textarea[name="prev_records"]').value,
-                other_military_records: document.querySelector('textarea[name="other_military_records"]').value,
-                other_market_prices: document.querySelector('textarea[name="other_market_prices"]').value,
-                market_survey: document.querySelector('textarea[name="market_survey"]').value,
-                discount_records: document.querySelector('textarea[name="discount_records"]').value,
-                price_index: document.querySelector('textarea[name="price_index"]').value,
-                cost_analysis: document.querySelector('textarea[name="cost_analysis"]').value,
-                conclusion: document.querySelector('textarea[name="conclusion"]').value
-            };
-
             // 處理「二、商源資料」多筆欄位組合
             const vNames = Array.from(document.querySelectorAll('input[name="v_name[]"]')).map(el => el.value.trim());
             const vAddresses = Array.from(document.querySelectorAll('input[name="v_address[]"]')).map(el => el.value.trim() || '無');
@@ -519,14 +515,35 @@
 
             let vendorStrings = [];
             for (let i = 0; i < vNames.length; i++) {
+                // 只要有填廠商名稱就處理
                 if (vNames[i]) {
                     vendorStrings.push(`${i + 1}. ${vNames[i]} (住址：${vAddresses[i]}，聯絡人：${vContacts[i]}，電話：${vPhones[i]})`);
                 }
             }
-            // 舊版 docxtemplater 專用的多行換行語法
-            templateData.source_data = {
-                _type: "table",
-                value: vendorStrings.map(str => [{text: str}])
+
+            // 建立一個安全的文字換行輔助函數
+            const formatLineBreaks = (text) => {
+                if (!text) return '';
+                // 將前端的 \n 替換成 Word 原生的換行 XML 標記
+                return text.replace(/\n/g, '<w:br/>');
+            };
+
+            // 收集基本資訊與經 XML 換行處理後的文字欄位
+            // 注意：欄位名稱前面加上 @，代表配合上方解析器，直接輸出包含 XML 換行標記的文字
+            const templateData = {
+                project_code: document.querySelector('input[name="project_code"]').value,
+                product_name: document.querySelector('input[name="product_name"]').value,
+                fill_date: document.querySelector('input[name="fill_date"]').value,
+                "@purpose": formatLineBreaks(document.querySelector('textarea[name="purpose"]').value),
+                "@source_data": formatLineBreaks(vendorStrings.join('\n')), // 商源資料已處理換行
+                "@prev_records": formatLineBreaks(document.querySelector('textarea[name="prev_records"]').value),
+                "@other_military_records": formatLineBreaks(document.querySelector('textarea[name="other_military_records"]').value),
+                "@other_market_prices": formatLineBreaks(document.querySelector('textarea[name="other_market_prices"]').value),
+                "@market_survey": formatLineBreaks(document.querySelector('textarea[name="market_survey"]').value),
+                "@discount_records": formatLineBreaks(document.querySelector('textarea[name="discount_records"]').value),
+                "@price_index": formatLineBreaks(document.querySelector('textarea[name="price_index"]').value),
+                "@cost_analysis": formatLineBreaks(document.querySelector('textarea[name="cost_analysis"]').value),
+                "@conclusion": formatLineBreaks(document.querySelector('textarea[name="conclusion"]').value)
             };
 
             // 處理多品項動態表格
