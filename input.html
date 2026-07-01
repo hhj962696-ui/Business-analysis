@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.6.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.17.6/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <title>商情分析表填寫系統 FOR-CID (v0701-0935)</title>
+    <title>商情分析表填寫系統(v0701-0940)</title>
     <style>
         body {
             font-family: "微軟正黑體", sans-serif;
@@ -470,7 +470,11 @@
                     vendorStrings.push(`${i + 1}. ${vNames[i]} (住址：${vAddresses[i]}，聯絡人：${vContacts[i]}，電話：${vPhones[i]})`);
                 }
             }
-            templateData.source_data = vendorStrings.join('\n');
+            // 舊版 docxtemplater 專用的多行換行語法
+            templateData.source_data = {
+                _type: "table",
+                value: vendorStrings.map(str => [{text: str}])
+            };
 
             // 處理多品項動態表格
             const items = [];
