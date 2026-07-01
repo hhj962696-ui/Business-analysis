@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.6.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.17.6/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <title>商情分析表填寫系統(v0701-1000)</title>
+    <title>商情分析表填寫系統(v0701-Fixed)</title>
     <style>
         body {
             font-family: "微軟正黑體", sans-serif;
@@ -112,48 +112,16 @@
             margin-bottom: 10px;
         }
 
-        /* ========================================================
-           手機版 RWD 優化：當螢幕寬度小於 768px 時自動調整結構 
-           ======================================================== */
+        /* 手機版 RWD 優化 */
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-
-            .container {
-                padding: 15px;
-            }
-
-            .row {
-                flex-direction: column;
-                gap: 5px;
-            }
-
-            .col {
-                width: 100%;
-                min-width: 100%;
-            }
-
-            .search-block div {
-                flex-direction: column !important;
-                align-items: stretch !important;
-                gap: 10px !important;
-            }
-
-            .search-block input[type="text"],
-            .search-block input[type="date"] {
-                width: 100% !important;
-            }
-
-            .search-block button {
-                margin-left: 0 !important;
-                width: 100% !important;
-            }
-
-            fieldset {
-                padding: 12px;
-                margin-bottom: 15px;
-            }
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .row { flex-direction: column; gap: 5px; }
+            .col { width: 100%; min-width: 100%; }
+            .search-block div { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+            .search-block input[type="text"], .search-block input[type="date"] { width: 100% !important; }
+            .search-block button { margin-left: 0 !important; width: 100% !important; }
+            fieldset { padding: 12px; margin-bottom: 15px; }
         }
     </style>
 </head>
@@ -250,7 +218,7 @@
                             <button type="button" onclick="searchPcc(5)" style="width: auto; padding: 7px 20px; background-color: #6f42c1; margin-left: auto;">🔍 依標案名稱查詢</button>
                         </div>
                     </div>
-                    <label>五、市場市場其他成交價格：</label>
+                    <label>五、市場其他成交價格：</label>
                     <textarea name="other_market_prices" rows="2">無</textarea>
                 </div>
 
@@ -297,7 +265,6 @@
     </div>
 
     <script>
-        // 1. 自動計算總價
         function calculateTotals() {
             let sumPrev = 0, sumMarket = 0, sumEst = 0;
             document.querySelectorAll('.item-row').forEach(row => {
@@ -312,7 +279,6 @@
             document.getElementById('sum_est_total').value = sumEst || '';
         }
 
-        // 2. 項次管理
         function updateItemNumbers() {
             const allItems = document.querySelectorAll('.item-row');
             allItems.forEach((item, index) => {
@@ -335,7 +301,6 @@
             calculateTotals();
         }
 
-        // 3. 商源廠商管理
         function addVendor() {
             const container = document.getElementById('vendor-container');
             const div = document.createElement('div');
@@ -371,7 +336,6 @@
             });
         }
 
-        // 4. 送出前驗證 (至少 3 家廠商)
         function validateVendors() {
             const vendorCount = document.querySelectorAll('.vendor-row').length;
             if (vendorCount < 3) {
@@ -381,10 +345,8 @@
             return true;
         }
 
-        // 5. 政府電子採購網搜尋功能
         function searchPcc(section) {
             let orgId = '', orgName = '', tenderName = '', vendorName = '', startDate = '', endDate = '';
-
             if (section === 3) {
                 orgId = document.getElementById('pcc_org_id_3').value;
                 startDate = document.getElementById('pcc_start_date_3').value;
@@ -406,7 +368,6 @@
                 endDate = document.getElementById('pcc_end_date_7').value;
                 if (!vendorName) return alert("請輸入廠商名稱！");
             }
-
             const fmtStart = startDate ? startDate.replace(/-/g, '/') : '';
             const fmtEnd = endDate ? endDate.replace(/-/g, '/') : '';
             const baseUrl = "https://web.pcc.gov.tw/prkms/tender/common/agent/readTenderAgent";
@@ -424,22 +385,10 @@
         };
 
         // ========================================================
-        // 純前端核心流程：自動讀取模板 -> XML解析換行 -> 產出 Word 檔
+        // 核心下載：改用「純陣列（Loop）」技術，繞過所有版本的換行 Bug
         // ========================================================
         async function generateDocument(targetDoc) {
             if (!validateVendors()) return;
-
-            // 1. 關鍵核心：複寫舊版 docxtemplater 的解析器，將帶有 @ 的變數視為 Raw XML 輸出
-            window.docxtemplater.prototype.options.parser = function (tag) {
-                return {
-                    get: function (scope) {
-                        if (tag.indexOf('@') === 0) {
-                            return scope[tag.substr(1)]; // 去掉 @，直接抓 scope 裡的資料
-                        }
-                        return scope[tag];
-                    }
-                };
-            };
 
             const templateUrl = targetDoc === 'review' ? '商情蒐集資料檢視表template.docx' : '商情分析表template.docx';
 
@@ -449,17 +398,17 @@
                 if (!response.ok) throw new Error(`找不到模板檔案：${templateUrl}`);
                 arrayBuffer = await response.arrayBuffer();
             } catch (error) {
-                alert(`⚠️ 讀取模板失敗！請確認模板檔案是否已上傳至 GitHub，且檔名正確。\n錯誤訊息: ${error.message}`);
+                alert(`⚠️ 讀取模板失敗！\n錯誤訊息: ${error.message}`);
                 return;
             }
 
-            // 將純文字中的 \n 轉換成 Word 原生換行 XML 標記的輔助函數
-            const formatLineBreaks = (text) => {
-                if (!text) return '';
-                return text.replace(/\n/g, '<w:br/>');
+            // 將使用者填寫的多行文字直接切割成「陣列物件」，Word 就會自動當成段落輸出！
+            const toParagraphs = (text) => {
+                if (!text) return [{ line: "" }];
+                return text.split('\n').map(str => ({ line: str }));
             };
 
-            // 處理「二、商源資料」多筆欄位串接
+            // 處理「商源資料」多筆欄位串接
             const vNames = Array.from(document.querySelectorAll('input[name="v_name[]"]')).map(el => el.value.trim());
             const vAddresses = Array.from(document.querySelectorAll('input[name="v_address[]"]')).map(el => el.value.trim() || '無');
             const vContacts = Array.from(document.querySelectorAll('input[name="v_contact[]"]')).map(el => el.value.trim() || '無');
@@ -472,31 +421,30 @@
                 }
             }
 
-            // 2. 終局設定：這裡的 Key 必須在引號內加上「@」符號，才能對應上方的自訂解析器！
             const templateData = {
                 project_code: document.querySelector('input[name="project_code"]').value,
                 product_name: document.querySelector('input[name="product_name"]').value,
                 fill_date: document.querySelector('input[name="fill_date"]').value,
-                "@purpose": formatLineBreaks(document.querySelector('textarea[name="purpose"]').value),
-                "@source_data": formatLineBreaks(vendorStrings.join('\n')),
-                "@prev_records": formatLineBreaks(document.querySelector('textarea[name="prev_records"]').value),
-                "@other_military_records": formatLineBreaks(document.querySelector('textarea[name="other_military_records"]').value),
-                "@other_market_prices": formatLineBreaks(document.querySelector('textarea[name="other_market_prices"]').value),
-                "@market_survey": formatLineBreaks(document.querySelector('textarea[name="market_survey"]').value),
-                "@discount_records": formatLineBreaks(document.querySelector('textarea[name="discount_records"]').value),
-                "@price_index": formatLineBreaks(document.querySelector('textarea[name="price_index"]').value),
-                "@cost_analysis": formatLineBreaks(document.querySelector('textarea[name="cost_analysis"]').value),
-                "@conclusion": formatLineBreaks(document.querySelector('textarea[name="conclusion"]').value)
+                // 全部封裝成純陣列，絕對不會死機
+                purpose: toParagraphs(document.querySelector('textarea[name="purpose"]').value),
+                source_data: vendorStrings.map(str => ({ line: str })),
+                prev_records: toParagraphs(document.querySelector('textarea[name="prev_records"]').value),
+                other_military_records: toParagraphs(document.querySelector('textarea[name="other_military_records"]').value),
+                other_market_prices: toParagraphs(document.querySelector('textarea[name="other_market_prices"]').value),
+                market_survey: toParagraphs(document.querySelector('textarea[name="market_survey"]').value),
+                discount_records: toParagraphs(document.querySelector('textarea[name="discount_records"]').value),
+                price_index: toParagraphs(document.querySelector('textarea[name="price_index"]').value),
+                cost_analysis: toParagraphs(document.querySelector('textarea[name="cost_analysis"]').value),
+                conclusion: toParagraphs(document.querySelector('textarea[name="conclusion"]').value)
             };
 
-            // 處理品項表格
+            // 處理一、品項表格
             const items = [];
             document.querySelectorAll('.item-row').forEach((row, index) => {
                 const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
                 const prevP = parseFloat(row.querySelector('input[name="prev_unit_price[]"]').value) || 0;
                 const marketP = parseFloat(row.querySelector('input[name="market_lowest_price[]"]').value) || 0;
                 const estP = parseFloat(row.querySelector('input[name="est_unit_price[]"]').value) || 0;
-
                 const fmt = (num) => num > 0 ? num.toLocaleString('en-US') : '';
 
                 items.push({
@@ -517,7 +465,6 @@
             const sumPrev = parseFloat(document.getElementById('sum_prev_total').value) || 0;
             const sumMarket = parseFloat(document.getElementById('sum_market_total').value) || 0;
             const sumEst = parseFloat(document.getElementById('sum_est_total').value) || 0;
-
             const fmtTotal = (num) => num > 0 ? num.toLocaleString('en-US') : '';
             templateData.sum_prev_total = fmtTotal(sumPrev);
             templateData.sum_market_total = fmtTotal(sumMarket);
@@ -527,7 +474,6 @@
                 const zip = new JSZip(arrayBuffer);
                 const doc = new window.docxtemplater();
                 doc.loadZip(zip);
-
                 doc.setData(templateData);
                 doc.render();
 
@@ -537,19 +483,12 @@
                 });
 
                 const now = new Date();
-                const dateStr = now.getFullYear() +
-                    String(now.getMonth() + 1).padStart(2, '0') +
-                    String(now.getDate()).padStart(2, '0') + '_' +
-                    String(now.getHours()).padStart(2, '0') +
-                    String(now.getMinutes()).padStart(2, '0') +
-                    String(now.getSeconds()).padStart(2, '0');
-
+                const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
                 const filePrefix = targetDoc === 'review' ? '商情蒐集資料檢視表_' : '商情分析表_';
                 saveAs(out, `${filePrefix}${dateStr}.docx`);
-
             } catch (error) {
                 console.error(error);
-                alert('⚠️ 產出 Word 檔案時發生錯誤，請檢查欄位標籤與格式！');
+                alert('⚠️ 產出 Word 檔案時發生錯誤！');
             }
         }
     </script>
