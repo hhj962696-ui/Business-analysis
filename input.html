@@ -111,6 +111,59 @@
             border: 1px solid #ddd;
             margin-bottom: 10px;
         }
+
+        /* ========================================================
+           手機版 RWD 優化：當螢幕寬度小於 768px 時自動調整結構 
+           ======================================================== */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                /* 手機版邊距縮小，留出更多填表空間 */
+            }
+
+            .container {
+                padding: 15px;
+                /* 容器內襯縮小 */
+            }
+
+            /* 關鍵：將橫向彈性排列改為垂直向下排列 */
+            .row {
+                flex-direction: column;
+                gap: 5px;
+                /* 縮小行與行的間距 */
+            }
+
+            .col {
+                width: 100%;
+                min-width: 100%;
+                /* 讓每個輸入框都佔滿 100% 寬度 */
+            }
+
+            /* 政府採購網查詢區塊的手機版優化 */
+            .search-block div {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+
+            .search-block input[type="text"],
+            .search-block input[type="date"] {
+                width: 100% !important;
+                /* 讓查詢條件在手機上也能滿版好按 */
+            }
+
+            .search-block button {
+                margin-left: 0 !important;
+                width: 100% !important;
+                /* 按鈕變大，方便同仁手指大拇指點擊 */
+            }
+
+            /* fieldset 邊距微調 */
+            fieldset {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+        }
     </style>
 </head>
 
