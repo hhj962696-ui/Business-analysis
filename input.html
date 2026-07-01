@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <title>商情分析表填寫系統 FOR-CID (v0701)</title>
     <style>
         body {
@@ -507,41 +507,41 @@
             templateData.sum_est_total = fmtTotal(sumEst);
 
             // 在前端使用 PizZip 與 docxtemplater 進行 Word 渲染
-    try {
-        // 1. 改用 PizZip 載入 binary 資料
-        const zip = new PizZip(arrayBuffer);
-        
-        // 2. 初始化 docxtemplater
-        const doc = new window.docxtemplater(zip, {
-            linebreaks: true,
-            paragraphLoop: true
-        });
+            try {
+                // 1. 改用 window.PizZip 載入 binary 資料
+                const zip = new window.PizZip(arrayBuffer);
 
-        // 3. 填入資料
-        doc.render(templateData);
+                // 2. 初始化 docxtemplater
+                const doc = new window.docxtemplater(zip, {
+                    linebreaks: true,
+                    paragraphLoop: true
+                });
 
-        // 4. 產出檔案
-        const out = doc.getZip().generate({
-            type: "blob",
-            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        });
+                // 3. 填入資料
+                doc.render(templateData);
 
-        // 5. 產生時間戳記並下載檔案
-        const now = new Date();
-        const dateStr = now.getFullYear() + 
-                        String(now.getMonth() + 1).padStart(2, '0') + 
-                        String(now.getDate()).padStart(2, '0') + '_' +
-                        String(now.getHours()).padStart(2, '0') + 
-                        String(now.getMinutes()).padStart(2, '0') + 
-                        String(now.getSeconds()).padStart(2, '0');
-        
-        const filePrefix = targetDoc === 'review' ? '商情蒐集資料檢視表_' : '商情分析表_';
-        saveAs(out, `${filePrefix}${dateStr}.docx`);
+                // 4. 產出檔案
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
 
-    } catch (error) {
-        console.error(error);
-        alert('⚠️ 產出 Word 檔案時發生錯誤，請檢查欄位標籤與格式！');
-    }
+                // 5. 產生時間戳記並下載檔案
+                const now = new Date();
+                const dateStr = now.getFullYear() +
+                    String(now.getMonth() + 1).padStart(2, '0') +
+                    String(now.getDate()).padStart(2, '0') + '_' +
+                    String(now.getHours()).padStart(2, '0') +
+                    String(now.getMinutes()).padStart(2, '0') +
+                    String(now.getSeconds()).padStart(2, '0');
+
+                const filePrefix = targetDoc === 'review' ? '商情蒐集資料檢視表_' : '商情分析表_';
+                saveAs(out, `${filePrefix}${dateStr}.docx`);
+
+            } catch (error) {
+                console.error(error);
+                alert('⚠️ 產出 Word 檔案時發生錯誤，請檢查欄位標籤與格式！');
+            }
         }
     </script>
 </body>
