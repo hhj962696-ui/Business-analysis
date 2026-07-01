@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.6.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.17.6/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <title>商情分析表填寫系統 FOR-CID (v0701)</title>
+    <title>商情分析表填寫系統 FOR-CID (v0701-0935)</title>
     <style>
         body {
             font-family: "微軟正黑體", sans-serif;
@@ -506,19 +506,18 @@
             templateData.sum_market_total = fmtTotal(sumMarket);
             templateData.sum_est_total = fmtTotal(sumEst);
 
-            // 在前端使用 PizZip 與 docxtemplater 進行 Word 渲染
+            // 在前端使用經典穩定版 JSZip 與 docxtemplater 進行 Word 渲染
             try {
-                // 1. 改用 window.PizZip 載入 binary 資料
-                const zip = new window.PizZip(arrayBuffer);
+                // 1. 直接以經典方式載入 binary 資料
+                const zip = new JSZip(arrayBuffer);
 
                 // 2. 初始化 docxtemplater
-                const doc = new window.docxtemplater(zip, {
-                    linebreaks: true,
-                    paragraphLoop: true
-                });
+                const doc = new window.docxtemplater();
+                doc.loadZip(zip);
 
-                // 3. 填入資料
-                doc.render(templateData);
+                // 3. 填入資料並執行渲染
+                doc.setData(templateData);
+                doc.render();
 
                 // 4. 產出檔案
                 const out = doc.getZip().generate({
